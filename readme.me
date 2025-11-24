@@ -1,118 +1,180 @@
-#  CPC Agente — Conversão de Frases para Lógica Proposicional
+# CPC Agente — Conversão de Frases para Lógica Proposicional
 
-Este é um projeto que recebe frases em português e converte para **Lógica Proposicional (CPC)** usando uma API inteligente (modelo de linguagem).  
-O usuário digita frases no front-end e o servidor Node.js processa e retorna a fórmula lógica correspondente.
+Este projeto recebe frases em português e converte para **Lógica Proposicional (CPC)** usando um modelo de linguagem (LLM). O sistema também inclui um parser próprio para interpretar fórmulas simbólicas (¬ ∧ ∨ → ↔) e traduzi-las para português.
 
-##  Estrutura do Projeto
+## Estrutura do Projeto
 
 cpc_agente/
 │
-├── public/ # Arquivos do front-end
-│ ├── index.html
-│ ├── script.js
-│ └── styles.css
+├── public/               # Arquivos do front-end
+│   ├── index.html
+│   ├── script.js
+│   └── styles.css
 │
-├── server.js # Servidor Node.js (Express + API)
+├── server.js             # Servidor Node.js (Express + API)
 ├── package.json
 ├── package-lock.json
 │
-├── .env # Chaves de API (NÃO ENVIAR PARA O GITHUB)
-└── .gitignore # Ignora node_modules e .env
+├── .env                  # Chaves de API (NÃO ENVIAR PARA O GITHUB)
+└── .gitignore            # Ignora node_modules e .env
 
-##  Arquitetura do Sistema
 
-O sistema foi projetado em três camadas:
+## Arquitetura do Sistema
+O sistema foi projetado em três camadas principais:
 
-Usuário → Front-end (HTML/CSS/JS) → Servidor Node.js → API LLM → Retorna fórmula lógica
+**Usuário → Front-end (HTML/CSS/JS) → Servidor Node.js → API LLM → Retorno ao usuário**
 
-###  **Front-end**
-- Formulário para inserir a frase
-- Envia via `fetch()` para o servidor
-- Exibe a fórmula convertida
+### Front-end
+- Interface simples em HTML/CSS
+- Envia requisições via `fetch()` para o servidor backend
+- Exibe a resposta retornada (fórmula lógica ou texto convertido)
 
-###  **Back-end (Node.js + Express)**
-- Recebe o texto do usuário
-- Envia ao modelo LLM
-- Processa a resposta
-- Retorna ao front-end
+### Back-end (Node.js + Express)
+- Rota principal: `POST /api/chat`
+- Identifica se o texto é uma fórmula simbólica ou frase em português
+- Usa:
+  - **parser próprio** (CPC → PT)
+  - **LLM Groq** (PT → CPC)
 
-###  **API Externa (LLM)**
-- Interpreta a frase
-- Converte para lógica proposicional (CPC)
-- Retorna com a fórmula final
+### API Externa (Groq LLM)
+- Modelo usado: `llama-3.3-70b-versatile`
+- Converte frases de português natural para lógica proposicional
 
-##  Diagrama Arquitetural (ASCII)
+## Diagrama Arquitetural (ASCII)
 
-                 ┌───────────────────────┐
-                 │        Usuário         │
-                 │  (navegador web)       │
-                 └──────────┬────────────┘
-                            │
-                            ▼
-                 ┌────────────────────────┐
-                 │        Front-end        │
-                 │  HTML • CSS • JS        │
-                 └──────────┬─────────────┘
-                            │  fetch()
-                            ▼
-                 ┌────────────────────────┐
-                 │       Servidor          │
-                 │      Node.js/Express    │
-                 └──────────┬─────────────┘
-                            │  Chamada LLM
-                            ▼
-                 ┌────────────────────────┐
-                 │         API LLM         │
-                 │  Converte frase → CPC   │
-                 └──────────┬─────────────┘
-                            │  Retorna JSON
-                            ▼
-                 ┌────────────────────────┐
-                 │        Front-end        │
-                 │ Exibe fórmula lógica    │
-                 └────────────────────────┘
+                     Usuário (Navegador)
+                              |
+                              v
+                   Front-end: HTML/CSS/JS
+                              |
+                              v
+                 Servidor Node.js / Express
+                              |
+                              v
+                          API Groq LLM
+                              |
+                              v
+                     Resposta ao Front-end
 
-##  Como rodar localmente
 
-### 1 Instalar dependências
-npm install
-### 2 Criar seu arquivo `.env`
-API_KEY=sua_chave_aqui
+## Estratégia de Tradução
+A conversão funciona com **duas estratégias complementares**:
 
-### 3 Iniciar o servidor
-node server.js
+### 1. Tradução PT → CPC (LLM)
+Utiliza um modelo de linguagem com um prompt especializado:
 
-Servidor rodará em:
-http://localhost:3000
+"Você é um especialista em lógica proposicional. Converta textos em português
+para fórmulas lógicas CPC (¬ ∧ ∨ → ↔). Apenas a fórmula como saída."
 
-##  Deploy no Render
 
-1. Crie um novo repositório no GitHub  
-2. Suba **todos os arquivos exceto**:  
-   - `node_modules/`  
-   - `.env`  
-3. Vá no Render → *New Web Service*  
-4. Conecte ao repo  
-5. Configure:
-   - Build Command: `npm install`
-   - Start Command: `node server.js`
-6. Em *Environment Variables* adicione:
-   - `API_KEY` = sua chave  
-7. Deploy!
+#### Exemplos
+**Entrada:**
 
-##  Exemplos de Uso
+Se chover então levo guarda-chuva
 
-Entrada:
-Se chover então levo guarda-chuva.
-Saída:
-(ch → g)
+**Saída do modelo:**
 
-Entrada:
+C → G
+
+
+**Entrada:**
+
 Maria viaja se e somente se João for também e tiver dinheiro.
-Saída:
+
+**Saída:**
+
 M ↔ (J ∧ D)
 
-## Autor Eric Dejair Silva Meleti, Gabriel Martins Rodrigues e Wellington Rodrigues da Silva
+#### Análise (acertos e erros)
+- O modelo frequentemente identifica bem conectivos como “se… então…”, “e”, “ou”.
+- Pode errar em frases ambíguas ou longas, criando símbolos não previstos.
+- É sensível à clareza dos termos: frases vagas podem gerar proposições mal definidas.
 
-Projeto desenvolvido para estudos de lógica proposicional e integração com modelos de linguagem.
+### 2. Tradução CPC → PT (Parser próprio)
+Implementado manualmente com as etapas:
+- Normalização de símbolos
+- Tokenização
+- Construção de Árvore Sintática (AST)
+- Conversão da AST para frases em português
 
+**Exemplo:**
+Entrada:
+
+¬(P ∧ Q) → R
+
+Saída:
+
+Se não P e Q for verdadeiro, então R.
+
+## Limitações e Possibilidades de Melhoria
+### Limitações
+- O modelo LLM pode gerar símbolos não definidos ou estrutura lógica incorreta.
+- Ambiguidades linguísticas podem resultar em proposições inconsistentes.
+- Não há verificação semântica das fórmulas, apenas sintática.
+- Dependência da API externa (Groq) pode gerar latência ou indisponibilidade.
+
+### Possíveis Melhorias
+- Criar **conjunto fixo de mapeamentos** PT → variáveis proposicionais.
+- Implementar **validação semântica** e detecção de contradições.
+- Adicionar **explicações** do processo (por que a fórmula foi escolhida).
+- Criar modo “passo a passo” demonstrando a interpretação da frase.
+- Adicionar histórico de conversas.
+
+---
+
+## Como rodar localmente
+### 1. Instalar dependências
+
+npm install
+
+
+### 2. Criar arquivo `.env`
+
+GROQ_API_KEY=sua_chave_aqui
+
+
+### 3. Iniciar servidor
+
+node server.js
+
+Acesse em: `http://localhost:3000`
+
+## Deploy no Render
+1. Subir tudo para um repositório GitHub (exceto `.env` e `node_modules/`).
+2. Criar Web Service no Render.
+3. Configurar:
+   - **Build Command:** `npm install`
+   - **Start Command:** `node server.js`
+4. Criar variável de ambiente:
+   - `GROQ_API_KEY`
+5. Deploy automático.
+
+Link do Render:
+
+https://cpc-agentv1-2.onrender.com
+
+Link do Vídeo Demonstrativo
+
+https://youtu.be/BfIEv3P9Z4s?si=GBWX_rpMiBnfpzN3
+
+## Exemplos de Uso
+**Entrada:**
+
+Se chover então levo guarda-chuva.
+
+**Saída:**
+
+C → G
+
+**Entrada:**
+
+Maria viaja se e somente se João for também e tiver dinheiro.
+
+**Saída:**
+
+M ↔ (J ∧ D)
+
+## Autores
+Eric Dejair Silva Meleti  
+Gabriel Martins Rodrigues  
+Wellington Rodrigues da Silva
